@@ -1,47 +1,47 @@
 #[derive(Debug)]
 pub struct StyleSheet {
-    rules: Vec<Rule>,
+    pub rules: Vec<Rule>,
 }
 
 #[derive(Debug)]
-struct Rule {
-    selectors: Vec<Selector>,
-    declarations: Vec<Declaration>,
+pub struct Rule {
+    pub selectors: Vec<Selector>,
+    pub declarations: Vec<Declaration>,
 }
 
 #[derive(Debug)]
-enum Selector {
+pub enum Selector {
     Simple(SimpleSelector),
 }
 
 #[derive(Debug)]
-struct SimpleSelector {
-    tag_name: Option<String>,
-    id: Option<String>,
-    class: Vec<String>,
+pub struct SimpleSelector {
+    pub tag_name: Option<String>,
+    pub id: Option<String>,
+    pub class: Vec<String>,
 }
 
 #[derive(Debug)]
-struct Declaration {
-    name: String,
-    value: Value,
+pub struct Declaration {
+    pub name: String,
+    pub value: Value,
 }
 
-#[derive(Debug)]
-enum Value {
+#[derive(Clone, Debug)]
+pub enum Value {
     Keyword(String),
     Length(f32, Unit),
     ColorValue(Color),
 }
 
-#[derive(Debug)]
-enum Unit {
+#[derive(Clone, Debug)]
+pub enum Unit {
     Px,
     Percent
 }
 
-#[derive(Debug)]
-struct Color {
+#[derive(Clone, Debug)]
+pub struct Color {
     r: u8,
     g: u8,
     b: u8,
@@ -49,8 +49,8 @@ struct Color {
 }
 
 pub struct Parser {
-    pos: usize,
-    input: String,
+    pub pos: usize,
+    pub input: String,
 }
 
 impl Parser {
@@ -82,8 +82,8 @@ impl Parser {
         self.pos >= self.input.len()
     }
 
-    fn next_char(&self) -> char {
-        self.input[self.pos..].chars().next().unwrap()
+    fn next_char(&self) -> Option<char> {
+        self.input[self.pos..].chars().next()
     }
 
     fn consume_char(&mut self) -> char {
@@ -101,7 +101,7 @@ impl Parser {
     {
         let mut res = String::new();
 
-        while !self.eof() && predicate(self.next_char()) {
+        while !self.eof() && predicate(self.next_char().unwrap()) {
             res.push(self.consume_char())
         }
 
@@ -125,20 +125,20 @@ impl Parser {
 
         while !self.eof() {
             match self.next_char() {
-                '#' => {
+                Some('#') => {
                     self.consume_char();
                     selector.id = Some(self.parse_identifier());
                 }
-                '.' => {
+                Some('.') => {
                     self.consume_char();
 
                     let identifier = self.parse_identifier();
                     selector.class.push(identifier);
                 }
-                '*' => {
+                Some('*') => {
                     self.consume_char();
                 }
-                c if valid_identifier_char(c) => {
+                Some(c) if valid_identifier_char(c) => {
                     selector.tag_name = Some(self.parse_identifier());
                 }
                 _ => break,
@@ -162,12 +162,16 @@ impl Parser {
             self.consume_whitespace();
 
             match self.next_char() {
-                ',' => {
+                Some(',') => {
                     self.consume_char();
                     self.consume_whitespace();
                 }
-                '{' => break, // start of declarations
-                c => panic!("Unexpected character {} in selector list", c),
+                Some('{') => {
+                    // start of declarations - break. Consume char for use in inline styles (which do not have brackets).
+                    self.consume_char();
+                    break
+                }, 
+                c => panic!("Unexpected character {:?} in selector list", c),
             }
         }
 
@@ -175,14 +179,12 @@ impl Parser {
         selectors
     }
 
-    fn parse_declarations(&mut self) -> Vec<Declaration> {
-        assert_eq!(self.consume_char(), '{');
-
+    pub fn parse_declarations(&mut self) -> Vec<Declaration> {
         let mut declarations = vec![];
         loop {
             self.consume_whitespace();
 
-            if self.next_char() == '}' {
+            if self.next_char() == Some('}') {
                 self.consume_char();
                 break;
             }
@@ -209,8 +211,8 @@ impl Parser {
 
     fn parse_value(&mut self) -> Value {
         match self.next_char() {
-            '0'..='9' => self.parse_length(),
-            '#' => self.parse_color(),
+            Some('0'..='9') => self.parse_length(),
+            Some('#') => self.parse_color(),
             _ => Value::Keyword(self.parse_identifier()),
         }
     }
