@@ -37,6 +37,7 @@ enum Value {
 #[derive(Debug)]
 enum Unit {
     Px,
+    Percent
 }
 
 #[derive(Debug)]
@@ -230,7 +231,8 @@ impl Parser {
     fn parse_unit(&mut self) -> Unit {
         match &*self.parse_identifier().to_ascii_lowercase() {
             "px" => Unit::Px,
-            _ => panic!("Unrecognised unit"),
+            "%" => Unit::Percent,
+            c => panic!("Unrecognised unit: {}", c),
         }
     }
 
@@ -255,7 +257,7 @@ impl Parser {
 
 fn valid_identifier_char(c: char) -> bool {
     match c {
-        'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' => true,
+        'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' | '%' => true,
         _ => false,
     }
 }
