@@ -37,7 +37,7 @@ pub enum Value {
 #[derive(Clone, Debug)]
 pub enum Unit {
     Px,
-    Percent
+    Percent,
 }
 
 #[derive(Clone, Debug)]
@@ -86,13 +86,18 @@ impl Parser {
         self.input[self.pos..].chars().next()
     }
 
-    fn consume_char(&mut self) -> char {
+    fn consume_char(&mut self) -> Option<char> {
         let mut iter = self.input[self.pos..].char_indices();
-        let (_, cur_char) = iter.next().unwrap();
-        let (next_pos, _) = iter.next().unwrap_or((1, ' '));
 
-        self.pos += next_pos;
-        cur_char
+        match iter.next() {
+            Some((_, cur_char)) => {
+                let (next_pos, _) = iter.next().unwrap_or((1, ' '));
+                self.pos += next_pos;
+
+                Some(cur_char)
+            }
+            _ => None,
+        }
     }
 
     fn consume_while<F>(&mut self, predicate: F) -> String
@@ -102,7 +107,10 @@ impl Parser {
         let mut res = String::new();
 
         while !self.eof() && predicate(self.next_char().unwrap()) {
-            res.push(self.consume_char())
+            match self.consume_char() {
+                Some(next) => res.push(next),
+                _ => (),
+            };
         }
 
         res
@@ -169,8 +177,8 @@ impl Parser {
                 Some('{') => {
                     // start of declarations - break. Consume char for use in inline styles (which do not have brackets).
                     self.consume_char();
-                    break
-                }, 
+                    break;
+                }
                 c => panic!("Unexpected character {:?} in selector list", c),
             }
         }
@@ -184,7 +192,7 @@ impl Parser {
         loop {
             self.consume_whitespace();
 
-            if self.next_char() == Some('}') {
+            if self.next_char() == Some('}') || self.next_char() == None {
                 self.consume_char();
                 break;
             }
@@ -199,12 +207,14 @@ impl Parser {
         let name = self.parse_identifier();
         self.consume_whitespace();
 
-        assert_eq!(self.consume_char(), ':');
+        println!("{}", name);
+        assert_eq!(self.consume_char(), Some(':'));
         self.consume_whitespace();
 
         let value = self.parse_value();
 
-        assert_eq!(self.consume_char(), ';');
+        println!("name: {}, value: {:?}", name, value);
+        assert_eq!(self.consume_char(), Some(';'));
 
         Declaration { name, value }
     }
@@ -239,7 +249,7 @@ impl Parser {
     }
 
     fn parse_color(&mut self) -> Value {
-        assert_eq!(self.consume_char(), '#');
+        assert_eq!(self.consume_char(), Some('#'));
 
         Value::ColorValue(Color {
             r: self.parse_hex_pair(),
